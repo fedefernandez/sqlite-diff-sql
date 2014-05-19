@@ -22,33 +22,42 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 /**
- *
+ * Main class for generating the update script
  * @author FedeProEx <fede at projectsexception.com>
  */
 public class DiffManager {
     
-    private final Collection<Table> previousTables;
-    private final Collection<Table> newTables;
+    private final DBReader dBReader;
     private final SqlGenerator sqlGenerator;
     
-    public DiffManager(String previousDb, String newDb) throws SQLException {
-        DBReader dBReader = new DBReader();
-        previousTables = dBReader.readTables(previousDb);
-        newTables = dBReader.readTables(newDb);
+    /*
+     * Constructor
+     */
+    public DiffManager() throws SQLException {
+        dBReader = new DBReader();
         sqlGenerator = new SqlGenerator();
     }
     
-    public String generateUpdateScript() {
+    /**
+     * Generate the update script
+     * @param previousDb path to database with minor version
+     * @param newDb path to database with mayor version
+     * @return SQL with the update script
+     * @throws SQLException if the database can't be opened
+     */
+    public String generateUpdateScript(String previousDb, String newDb) throws SQLException {
+        Collection<Table> previousTables = dBReader.readTables(previousDb);
+        Collection<Table> newTables = dBReader.readTables(newDb);
         StringBuilder sql = new StringBuilder();
         if (previousTables != null && newTables != null) {
-            sql.append(generateDropTables());
-            sql.append(generateCreateTables());
-            sql.append(generateUpdateTables());
+            sql.append(generateDropTables(previousTables, newTables));
+            sql.append(generateCreateTables(previousTables, newTables));
+            sql.append(generateUpdateTables(previousTables, newTables));
         }
         return sql.toString();
     }
 
-    private String generateUpdateTables() {
+    private String generateUpdateTables(Collection<Table> previousTables, Collection<Table> newTables) {
         StringBuilder sql = new StringBuilder();
         Collection<Table> tablesToUpdate = findTablesToUpdate(previousTables, newTables);
         for (Table table : tablesToUpdate) {
@@ -61,7 +70,7 @@ public class DiffManager {
         return sql.toString();
     }
     
-    private String generateCreateTables() {
+    private String generateCreateTables(Collection<Table> previousTables, Collection<Table> newTables) {
         StringBuilder sql = new StringBuilder();
         Collection<Table> tablesToAdd = findNonExistentTables(newTables, previousTables);
         for (Table table : tablesToAdd) {
@@ -70,7 +79,7 @@ public class DiffManager {
         return sql.toString();
     }
 
-    private String generateDropTables() {
+    private String generateDropTables(Collection<Table> previousTables, Collection<Table> newTables) {
         StringBuilder sql = new StringBuilder();
         Collection<Table> tablesToRemove = findNonExistentTables(previousTables, newTables);
         for (Table table : tablesToRemove) {
